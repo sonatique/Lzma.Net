@@ -280,11 +280,12 @@ public XzDecompressStream(Stream stream, XzDecompressOptions? options, bool leav
 | `threads` | `int` | Decoder threads: `0` = all CPUs, `1` = single-threaded (default), `N` = up to N threads. |
 | `leaveOpen` | `bool` | If `true`, the underlying stream is not closed on dispose. |
 
-When `threads > 1`, XZ blocks are read sequentially but decoded in parallel
-(synchronous `Read` path). Parallelism applies per XZ block, so multi-block
-streams are required to benefit; up to `threads` decoded blocks are buffered
-in memory at a time, so peak memory use grows with the thread count and block
-size.
+When `threads > 1`, XZ blocks are read sequentially but decoded in parallel, in
+both the synchronous and asynchronous read paths: up to `threads` blocks decode
+at once, and the next one starts as soon as the oldest is handed out.
+Parallelism applies per XZ block, so multi-block streams are required to
+benefit; up to `threads` + 1 decoded blocks are held in memory at a time, so
+peak memory use grows with the thread count and block size.
 
 **Exceptions:**
 
@@ -350,11 +351,11 @@ Configuration object for XZ compression. All properties have sensible defaults m
 public int Preset { get; set; } = 6;
 ```
 
-Compression level from 0 (fastest, largest) to 9 (slowest, smallest). Controls dictionary size, match-finder choice, and parsing strategy: presets 0–2 are greedy, 3–6 use lazy matching (hash-chain finder), and 7–9 use the BT4 binary-tree finder with price-based optimal parsing for near-xz compression ratios at substantially lower speed.
+Compression level from 0 (fastest, largest) to 9 (slowest, smallest). Controls dictionary size, match-finder choice, and parsing strategy: as in xz, presets 0–3 use the fast-mode parser with the hash-chain finder, and 4–9 use the BT4 binary-tree finder with price-based optimal parsing (smaller output at substantially lower speed). Output size is within about 1.6% of `xz` at the same level.
 
 | Preset | Dictionary Size |
 |--------|----------------|
-| 0 | 64 KB |
+| 0 | 256 KB |
 | 1 | 1 MB |
 | 2 | 2 MB |
 | 3–4 | 4 MB |
@@ -544,7 +545,7 @@ Configuration for XZ decompression.
 |----------|------|---------|-------------|
 | `Threads` | `int` | `1` | `0` = all CPUs, `1` = single-threaded, `N` = up to N threads. Parallelism applies per XZ block. |
 | `MaxOutputSize` | `long` | `long.MaxValue` | Maximum total decompressed bytes before `LzmaMemoryLimitException` is thrown. Enforced **before** any allocation — protects against decompression bombs. For `XzSeekableStream`, applies per block. |
-| `Progress` | `IProgress<long>?` | `null` | Reports cumulative decompressed bytes, once per decoded block (or batch in parallel mode). |
+| `Progress` | `IProgress<long>?` | `null` | Reports cumulative decompressed bytes, once per decoded block. |
 
 Used by `XzCompressor.Decompress(data, options)`, `new XzDecompressStream(stream, options, leaveOpen)`, and `XzSeekableStream`.
 
