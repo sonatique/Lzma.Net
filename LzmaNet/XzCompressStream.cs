@@ -158,14 +158,18 @@ public sealed class XzCompressStream : Stream
         _failure?.Throw();
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Flushes the base stream. Input is compressed in whole blocks, when a block fills
+    /// and on dispose, so data written since the last full block stays buffered: ending
+    /// a block on every flush would reset the dictionary each time.
+    /// </summary>
     public override void Flush()
     {
         Portable.ThrowIfDisposed(_disposed, this);
         _baseStream.Flush();
     }
 
-    /// <inheritdoc/>
+    /// <inheritdoc cref="Flush"/>
     public override async Task FlushAsync(CancellationToken cancellationToken)
     {
         Portable.ThrowIfDisposed(_disposed, this);
